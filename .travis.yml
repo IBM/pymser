@@ -1,0 +1,79 @@
+dist: bionic
+
+language: python
+
+python:
+  - "3.10"
+
+git:
+  depth: 5
+
+branches:
+  except:
+    - /^v(\d+\.?)+/
+
+addons:
+  apt:
+    update: true
+    packages:
+      - gettext
+
+install:
+  - pip install --quiet --upgrade pip bump2version flake8
+
+before_script:
+ # Define branch-dependent environment variables
+  - TAG="${TRAVIS_PULL_REQUEST_BRANCH:-$TRAVIS_BRANCH}";
+  - if [ "$TRAVIS_BRANCH" == "release" ]; then
+      UPDATE=minor;
+    elif [ "$TRAVIS_BRANCH" == "master" ]; then
+      UPDATE=patch;
+    elif [ "$TRAVIS_BRANCH" == "main" ]; then
+      UPDATE=patch;
+    else
+      UPDATE=none;
+    fi;
+
+script:
+  # Run Python linters
+  - flake8 --max-line-length=100
+
+  # Increment package version and prepare for release
+  - CURRENT_VERSION=$(python version.py)
+  - if [ "$UPDATE" != "none" ]; then
+      bump2version --current-version $CURRENT_VERSION $UPDATE setup.py --tag --commit --message $'{new_version} Release\n\n[skip ci]' --verbose;
+    fi;
+
+after_script:
+  - pip list
+
+deploy:
+  - provider: pypi
+    username: "$ARTIFACTORY_USERNAME"
+    password: "$ARTIFACTORY_API_KEY"
+    server: "$ARTIFACTORY_URL"
+    on:
+      branch:
+        - master
+        - release
+  - provider: pypi
+    username: "__token__"
+    password: "$PYPI_API_TOKEN"
+    on:
+      branch:
+        - main
+  - provider: script
+    script: git push origin HEAD:"$TAG" --follow-tags
+    skip_cleanup: true
+    on:
+      branch:
+        - main
+        - master
+        - release
+
+env:
+  global:
+    # ARTIFACTORY_USERNAME defined via web UI
+    # ARTIFACTORY_URL defined via web UI
+    # ARTIFACTORY_API_KEY defined via web UI
+    # PYPI_API_TOKEN defined via web UI
