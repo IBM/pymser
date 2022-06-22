@@ -63,7 +63,7 @@ def check_consistency(data):
     return is_all_finite, is_all_zero, data_array
 
 
-def batch_average_data(data, batch_size):
+def batch_average_data(data, batch_size=1):
     """
     Converts the data to batch averages with a given batch size.
 
@@ -97,7 +97,7 @@ def batch_average_data(data, batch_size):
         return data
 
 
-def calculate_MSEm(data, batch_size):
+def calculate_MSEm(data, batch_size=1):
     """
     Calculates the m-Marginal Standard Error (MSEm) for a simulation data
     with batch size equals to m. m=1 reduces to the original MSER.
@@ -169,9 +169,9 @@ def MSERm_index(MSEm, batch_size=1):
     return equilibrated_index
 
 
-def MSERm_LMM_index(MSEm, batch_size):
+def MSERm_LLM_index(MSEm, batch_size=1):
     """
-    Applies the LMM version of m-Marginal Standard Error Rule (MSERm) to the SERm
+    Applies the LLM version of m-Marginal Standard Error Rule (MSERm) to the SERm
     data to get the position where equilibrated data starts. This method gets
     the first minimum on Marginal Standard Error curve and assumes it is the
     start of equilibriation. It is a better option for complicated adsorptions
@@ -185,52 +185,83 @@ def MSERm_LMM_index(MSEm, batch_size):
         Size of the batch to take the average
     Returns
     -------
-    equilibrated_average : float
-        Average on the equilibrated data
-    equilibrated_sd : float
-        Standard deviation of the average
+    t0 : int
+        Start of the LLM equilibrated data
     """
 
     # Search for the first mininum on the MSEm data
     i = 0
     while MSEm[i+1] < MSEm[i]:
         i += 1
+    # Correct for the batch size
+    t0 = i*batch_size
 
-    return i*batch_size
+    return t0
 
 
-def calc_equilibrated_average(data, eq_index, verbosity=False):
+def calc_equilibrated_average(data, eq_index, uncertainty='uSD', ac_time=1):
     '''
-    Calculates the average and standard deviation on the equilibrated part
+    Calculates the average and uncertainty on the equilibrated part
     of the data.
 
     Parameters
     ----------
+    data : array
+        Array with the data
     eq_index : int
         Index of the start of equilibrated data.
+    uncertainty : str
+        String for selecting Standard Error (SE), Standard Deviation (SD), or its
+        uncorrelated versions uSD and uSE as the default uncertainty of the average.
+    ac_time : int
+        Autocorrelation time
     Returns
     -------
     equilibrated_average : float
         Average on the equilibrated data
-    equilibrated_sd : float
-        Standard deviation of the average
+    equilibrated_uncertainty : float
+        Uncertainty of the average calculation
     '''
-    # Remove the initial transient data
+
+    if uncertainty not in ['SD', 'SE', 'uSD', 'uSE']:
+        raise Exception(f"""{uncertainty} is not a valid option!
+            Only Standard Deviation (SD), Standard Error (SE), uncorrelated
+            Standard Deviation (uSD), and uncorrelated Standard Error (uSE)
+            are valid options.""")
+
+    # Remove the initial transient of the data
     equilibrated_data = data[eq_index:]
 
     # Calculates the average on the equilibrated data
     equilibrated_average = np.average(equilibrated_data)
 
     # Calculate the standad deviation on the equilibrated data
-    equilibrated_sd = np.std(equilibrated_data)
+    if uncertainty == 'SD':
+        equilibrated_uncertainty = np.std(equilibrated_data)
 
-    if verbosity:
-        print(f'Start of equilibrated data {eq_index}/{len(data)}')
-        print(len(data) - eq_index, 'equilibrated steps.')
-        print('Average over equilibrated data')
-        print(f'{equilibrated_average:.4f} +- {equilibrated_sd:.4f}')
+    # Calculate the Standard Error
+    elif uncertainty == 'SE':
+        equilibrated_uncertainty = np.std(equilibrated_data) / np.sqrt(len(equilibrated_data))
 
-    return equilibrated_average, equilibrated_sd
+    # Calculate the uncorrelated Standard Error
+    elif uncertainty == 'uSD':
+        # Divide the equilibrated_data on uncorrelated chunks
+        uncorr_batches = batch_average_data(equilibrated_data,
+                                            np.ceil(ac_time).astype(int))
+
+        # Calculate the standard deviation on the uncorrelated chunks
+        equilibrated_uncertainty = np.std(uncorr_batches)
+
+    # Calculate the uncorrelated Standard Error
+    elif uncertainty == 'uSE':
+        # Divide the equilibrated_data on uncorrelated chunks
+        uncorr_batches = batch_average_data(equilibrated_data,
+                                            np.ceil(ac_time).astype(int))
+
+        # Calculate the standard error of the mean on the uncorrelated chunks
+        equilibrated_uncertainty = np.std(uncorr_batches) / np.sqrt(len(uncorr_batches))
+
+    return equilibrated_average, equilibrated_uncertainty
 
 
 def calc_autocorrelation_time(data):
@@ -254,18 +285,22 @@ def calc_autocorrelation_time(data):
     if is_all_finite is False or is_all_zero is True:
         return 0, 0
 
-    # Calculates the ACF using numpy
-    data_std = data_array - np.mean(data_array)
-    data_norm = np.sum(data_std ** 2)
-    ACF = np.correlate(data_std, data_std, mode='full')/data_norm
-    ACF = ACF[int(ACF.size/2):]
+    try:
+        # Calculates the ACF using numpy
+        data_std = data_array - np.mean(data_array)
+        data_norm = np.sum(data_std ** 2)
+        ACF = np.correlate(data_std, data_std, mode='full')/data_norm
+        ACF = ACF[int(ACF.size/2):]
 
-    # Fit a exponential decay to ACF
-    x = np.arange(len(ACF))
-    [tau], _ = curve_fit(exp_decay,  x,  ACF)
+        # Fit a exponential decay to ACF
+        x = np.arange(len(ACF))
+        [tau], _ = curve_fit(exp_decay,  x,  ACF)
 
-    # Calculate autocorrelation time as the half-live of ACF exponential decay
-    autocorrelation_time = tau*np.log(2)
+        # Calculate autocorrelation time as the half-live of ACF exponential decay
+        autocorrelation_time = tau*np.log(2)
+
+    except Exception:
+        autocorrelation_time = 1
 
     # Calculate the number of uncorrelated data
     uncorrelated_samples = data_array.size / np.ceil(tau)
@@ -321,9 +356,15 @@ Cutoff Metrics :
     return ADFTestResults, output
 
 
-def equilibrate(input_data, LLM=False, batch_size=1, ADF_test=True, print_results=True):
+def equilibrate(input_data,
+                LLM=False,
+                batch_size=1,
+                ADF_test=True,
+                uncertainty='uSD',
+                print_results=True):
     """
-    Wraps function to apply MSER to an input_data array.
+    Wrap function to apply MSER to an input_data array.
+
     Parameters
     ----------
     input_data : array
@@ -334,6 +375,9 @@ def equilibrate(input_data, LLM=False, batch_size=1, ADF_test=True, print_result
         Size of the batch to take the average
     ADF_test : bool
         Boolean to control usage ADF test
+    uncertainty : str
+        String for selecting Standard Error (SE), Standard Deviation (SD), or its
+        uncorrelated versions uSD and uSE as the default uncertainty of the average.
     print_results : bool
         Boolean to control printing of the results
     Returns
@@ -350,7 +394,7 @@ def equilibrate(input_data, LLM=False, batch_size=1, ADF_test=True, print_result
         results_dict = {'MSE': np.nan,
                         't0': np.nan,
                         'average': np.nan,
-                        'sd': np.nan,
+                        'uncertainty': np.nan,
                         'equilibrated': np.nan,
                         'ac_time': np.nan,
                         'uncorr_samples': np.nan}
@@ -361,11 +405,24 @@ def equilibrate(input_data, LLM=False, batch_size=1, ADF_test=True, print_result
         results_dict = {'MSE': np.zeros(len(array_data)),
                         't0': 0,
                         'average': 0,
-                        'sd': 0,
+                        'uncertainty': 0,
                         'equilibrated': np.zeros(len(array_data)),
                         'ac_time': 0,
                         'uncorr_samples': 0}
         return results_dict
+
+    # Check if the input parameters are what is expected
+    assert isinstance(LLM, bool), 'LLM should be True or False'
+    assert isinstance(batch_size, int), 'batch_size should be an int'
+    assert isinstance(ADF_test, bool), 'ADF_test should be True or False'
+    assert isinstance(print_results, bool), 'print_results should be True or False'
+
+    # Check if the uncertainty is a valid option
+    if uncertainty not in ['SD', 'SE', 'uSD', 'uSE']:
+        raise Exception(f"""{uncertainty} is not a valid option!
+            Only Standard Deviation (SD), Standard Error (SE), uncorrelated
+            Standard Deviation (uSD), and uncorrelated Standard Error (uSE)
+            are valid options.""")
 
     # Calculate the Marginal Standard Error curve
     MSEm_curve = calculate_MSEm(array_data, batch_size=batch_size)
@@ -376,20 +433,23 @@ def equilibrate(input_data, LLM=False, batch_size=1, ADF_test=True, print_result
 
     if LLM is True:
         # Apply the MSER-LLM to get the index of the start of equilibrated data
-        t0 = MSERm_LMM_index(MSEm_curve, batch_size=batch_size)
-
-    # Calculates the average and standard deviation on the equilibrated data
-    average, sd = calc_equilibrated_average(array_data, t0)
+        t0 = MSERm_LLM_index(MSEm_curve, batch_size=batch_size)
 
     # Calculate autocorrelation time and the number of uncorrelated samples
     equilibrated = array_data[t0:]
     ac_time, uncorr_samples = calc_autocorrelation_time(equilibrated)
 
+    # Calculates the average and standard deviation on the equilibrated data
+    average, avg_uncertainty = calc_equilibrated_average(array_data,
+                                                         t0,
+                                                         uncertainty,
+                                                         ac_time)
+
     # Create a dictionary with the results
     results_dict = {'MSE': MSEm_curve,
                     't0': t0,
                     'average': average,
-                    'sd': sd,
+                    'uncertainty': avg_uncertainty,
                     'equilibrated': equilibrated,
                     'ac_time': ac_time,
                     'uncorr_samples': uncorr_samples}
@@ -401,7 +461,7 @@ def equilibrate(input_data, LLM=False, batch_size=1, ADF_test=True, print_result
 ==============================================================================
 Start of equilibrated data:          {t0} of {len(array_data)}
 Total equilibrated steps:            {len(array_data) - t0}  ({eq_ratio:.2f}%)
-Average over equilibrated data:      {average:.4f} ± {sd:.4f}
+Average over equilibrated data:      {average:.4f} ± {avg_uncertainty:.4f}
 Number of uncorrelated samples:      {uncorr_samples:.1f}
 Autocorrelation time:                {ac_time:.1f}
 ==============================================================================""")
