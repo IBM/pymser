@@ -64,6 +64,7 @@ deploy:
         - main
   - provider: script
     script: git push origin HEAD:"$TAG" --follow-tags
+    github_token: $GITHUB_PERSONAL_ACCESS_TOKEN
     skip_cleanup: true
     on:
       branch:
