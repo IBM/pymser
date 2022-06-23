@@ -107,13 +107,13 @@ This is a small example of how to use our package:
 >>> df = pd.read_csv('example_data/Cu-BTT_500165.0_198.000000.csv')
 >>>
 >>> # Apply the MSER to get the index of the start of equilibrated data
->>> results = pymser.equilibrate(df['mol/kg'], LLM=False, batch_size=1, ADF_test=True, print_results=True)
+>>> results = pymser.equilibrate(df['mol/kg'], LLM=False, batch_size=1, ADF_test=True, uncertainty='uSD', print_results=True)
 
                             pyMSER Equilibration Results
 ==============================================================================
 Start of equilibrated data:          13368 of 48613
 Total equilibrated steps:            35245  (72.50%)
-Average over equilibrated data:      22.4197 ± 0.2105
+Average over equilibrated data:      22.4197 ± 0.1926
 Number of uncorrelated samples:      22.9
 Autocorrelation time:                1067.3
 ==============================================================================
