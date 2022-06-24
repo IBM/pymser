@@ -64,13 +64,17 @@ deploy:
         - main
   - provider: script
     script: git push origin HEAD:"$TAG" --follow-tags
-    github_token: $GITHUB_PERSONAL_ACCESS_TOKEN
+    skip_cleanup: true
+    on:
+      branch:
+        - master
+        - release
+  - provider: script
+    script: git remote add public https://oauth:${GITHUB_PERSONAL_ACCESS_TOKEN}@github.com/IBM/pymser.git && git push public HEAD:"$TAG" --follow-tags
     skip_cleanup: true
     on:
       branch:
         - main
-        - master
-        - release
 
 env:
   global:
@@ -78,3 +82,4 @@ env:
     # ARTIFACTORY_URL defined via web UI
     # ARTIFACTORY_API_KEY defined via web UI
     # PYPI_API_TOKEN defined via web UI
+    # GITHUB_PERSONAL_ACCESS_TOKEN defined via web UI
