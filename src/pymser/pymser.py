@@ -275,8 +275,10 @@ def calc_autocorrelation_time(data):
         Array of data to calculate the integrated autocorrelation time
     Returns
     -------
-    tau : float
+    autocorrelation_time : float
         Autocorrelation time
+    uncorrelated_samples : float
+        Number of uncorrelated samples
     """
 
     # Check the consistency of the time_serie
@@ -297,13 +299,15 @@ def calc_autocorrelation_time(data):
         [tau], _ = curve_fit(exp_decay,  x,  ACF)
 
         # Calculate autocorrelation time as the half-live of ACF exponential decay
-        autocorrelation_time = tau*np.log(2)
+        autocorrelation_time = np.ceil(tau*np.log(2))
 
-    except Exception:
+    except RuntimeError:
+        # If the if the least-squares minimization fails, set the autocorrelation_time to 1.
+        # This can happen if the ACF data do not present a exponential decay
         autocorrelation_time = 1
 
     # Calculate the number of uncorrelated data
-    uncorrelated_samples = data_array.size / np.ceil(tau)
+    uncorrelated_samples = data_array.size / autocorrelation_time
 
     return autocorrelation_time, uncorrelated_samples
 
