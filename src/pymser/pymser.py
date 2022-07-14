@@ -301,10 +301,12 @@ def calc_autocorrelation_time(data):
         # Calculate autocorrelation time as the half-live of ACF exponential decay
         autocorrelation_time = np.ceil(tau*np.log(2))
 
-    except RuntimeError:
+    except (RuntimeError, ValueError) as Error:
         # If the if the least-squares minimization fails, set the autocorrelation_time to 1.
         # This can happen if the ACF data do not present a exponential decay
         autocorrelation_time = 1
+        print('The least-squares minimization failed! Please check the data.')
+        print(Error)
 
     # Calculate the number of uncorrelated data
     uncorrelated_samples = data_array.size / autocorrelation_time
