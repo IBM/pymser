@@ -199,6 +199,53 @@ def MSERm_LLM_index(MSEm, batch_size=1):
     return t0
 
 
+def enthalpy_of_adsorption(energy, number_of_molecules, temperature):
+    """
+    Calculates the enthalpy of adsorption as
+
+    H = <EN> - <E><N> / <N^2> - <N>^2 - RT
+
+    adapted from J. Phys. Chem. 1993, 97, 51, 13742-13752.
+
+    Please note that Heat of adsorption (Q_iso) = -Enthalpy of adsorption (H).
+
+    The isosteric enthalpy of adsorption, H, is defined as the heat which is released
+    when an adsorptive binds to a surface. The enthalpy of adsorption (H) is a negative
+    number and the isosteric heat (Q_iso) of adsorption is a positive number.
+    For a deeper discussion see: Dalton Trans., 2020, 49, 10295.
+
+    Parameters
+    ----------
+    energy : 1D array
+        List with the potential energy of the adsorbed phase for each MC cycle in units of Kelvin.
+
+    number_of_molecules : 1D array
+        List with the number of molecules in the simulation system for each MC cycle.
+
+    temperature : float
+        Temperature of the simulation in Kelvin
+
+    Returns
+    ----------
+
+    H : float
+        Enthalpy of adsorption in units of kJ⋅mol-1
+    """
+    # Define basic constants
+    R = 8.31446261815324 * 1e-3  # kJ⋅K−1⋅mol−1
+
+    # Convert energy from Kelvin to kJ/mol
+    E = np.array(energy) * R
+    N = np.array(number_of_molecules)
+
+    EN = E * N
+
+    # Calculate the enthalpy of adsorption. Here <N^2> - <N>^2 = VAR(N)
+    H = (EN.mean() - E.mean() * N.mean()) / np.var(N) - R * temperature
+
+    return H
+
+
 def calc_equilibrated_average(data, eq_index, uncertainty='uSD', ac_time=1):
     '''
     Calculates the average and uncertainty on the equilibrated part
@@ -262,6 +309,91 @@ def calc_equilibrated_average(data, eq_index, uncertainty='uSD', ac_time=1):
         equilibrated_uncertainty = np.std(uncorr_batches) / np.sqrt(len(uncorr_batches))
 
     return equilibrated_average, equilibrated_uncertainty
+
+
+def calc_equilibrated_enthalpy(energy,
+                               number_of_molecules,
+                               temperature,
+                               eq_index,
+                               uncertainty='uSD',
+                               ac_time=1):
+    '''
+    Calculates the average enthalpy of adsorption and uncertainty on the equilibrated
+    part of the data.
+
+    Parameters
+    ----------
+    energy : 1D array
+        List with the potential energy of the adsorbed phase for each MC cycle in units of Kelvin.
+    number_of_molecules : 1D array
+        List with the number of molecules in the simulation system for each MC cycle.
+    eq_index : int
+        Index of the start of equilibrated data.
+    uncertainty : str
+        String for selecting Standard Error (SE), Standard Deviation (SD), or its
+        uncorrelated versions uSD and uSE as the default uncertainty of the average.
+    ac_time : int
+        Autocorrelation time
+    Returns
+    -------
+    equilibrated_average : float
+        Average on the equilibrated data
+    equilibrated_uncertainty : float
+        Uncertainty of the average calculation
+    '''
+
+    if uncertainty not in ['SD', 'SE', 'uSD', 'uSE']:
+        raise Exception(f"""{uncertainty} is not a valid option!
+            Only Standard Deviation (SD), Standard Error (SE), uncorrelated
+            Standard Deviation (uSD), and uncorrelated Standard Error (uSE)
+            are valid options.""")
+
+    # Remove the initial transient of the data
+    equilibrated_E = energy[eq_index:]
+    equilibrated_N = number_of_molecules[eq_index:]
+
+    if uncertainty in ['SD', 'SE']:
+
+        # Trucate and reshape the data to allow a closed batch.
+        truncated_E = equilibrated_E[:int(np.floor(len(equilibrated_E) / 5) * 5)]
+        reshaped_E = np.reshape(truncated_E, (5, -1))
+
+        truncated_N = equilibrated_N[:int(np.floor(len(equilibrated_N) / 5) * 5)]
+        reshaped_N = np.reshape(truncated_N, (5, -1))
+
+    elif uncertainty in ['uSD', 'uSE']:
+
+        ac_time = np.ceil(ac_time).astype(int)
+
+        # Trucate and reshape the data to allow a closed batch.
+        truncated_E = equilibrated_E[:int(np.floor(len(equilibrated_E) / ac_time) * ac_time)]
+        reshaped_E = np.reshape(truncated_E, (-1, ac_time))
+
+        truncated_N = equilibrated_N[:int(np.floor(len(equilibrated_N) / ac_time) * ac_time)]
+        reshaped_N = np.reshape(truncated_N, (-1, ac_time))
+
+    # Calculates the average on the equilibrated data
+    equilibrated_H_list = []
+
+    for i in range(len(reshaped_E)):
+        equilibrated_H_list.append(enthalpy_of_adsorption(reshaped_E[i],
+                                                          reshaped_N[i],
+                                                          temperature))
+
+    equilibrated_H = np.array(equilibrated_H_list).mean()
+
+    # Calculate the uncorrelated Standard Error
+    if uncertainty in ['SD', 'uSD']:
+
+        # Calculate the standard deviation on the uncorrelated chunks
+        equilibrated_uncertainty = np.std(equilibrated_H_list)
+
+    elif uncertainty in ['SE', 'uSE']:
+
+        # Calculate the standard error of the mean on the uncorrelated chunks
+        equilibrated_uncertainty = np.std(equilibrated_H_list) / np.sqrt(len(equilibrated_H_list))
+
+    return equilibrated_H, equilibrated_uncertainty
 
 
 def calc_autocorrelation_time(data):
@@ -475,6 +607,198 @@ Autocorrelation time:                {ac_time:.1f}
     if ADF_test:
         # Apply the Augmented Dickey-Fuller Test on the equilibrated data
         ADFTestResults, output_text = apply_ADF_test(equilibrated,
+                                                     verbosity=print_results)
+        results_dict.update(ADFTestResults)
+
+    return results_dict
+
+
+def equilibrate_enthalpy(energy,
+                         number_of_molecules,
+                         temperature,
+                         LLM=False,
+                         batch_size=1,
+                         ADF_test=True,
+                         uncertainty='uSD',
+                         print_results=True):
+    """
+    Wrap function to apply MSER and calculate the equilibrated enthalpy of adsorption as
+
+    H = <EN> - <E><N> / <N^2> - <N>^2 - RT
+
+    adapted from J. Phys. Chem. 1993, 97, 51, 13742-13752.
+
+    Please note that Heat of adsorption (Q_iso) = -Enthalpy of adsorption (H).
+
+    The isosteric enthalpy of adsorption, H, is defined as the heat which is released
+    when an adsorptive binds to a surface. The enthalpy of adsorption (H) is a negative
+    number and the isosteric heat (Q_iso) of adsorption is a positive number.
+    For a deeper discussion see: Dalton Trans., 2020, 49, 10295.
+
+    Parameters
+    ----------
+    energy : 1D array
+        List with the potential energy of the adsorbed phase for each MC cycle in units of Kelvin.
+    number_of_molecules : 1D array
+        List with the total number of molecules in the simulation box for each MC cycle.
+    temperature : float
+        Temperature of the simulation in Kelvin
+    LLM : bool
+        Boolean to control usage of the LLM variation of MSER
+    batch_size : int
+        Size of the batch to take the average
+    ADF_test : bool
+        Boolean to control usage ADF test
+    uncertainty : str
+        String for selecting Standard Error (SE), Standard Deviation (SD), or its
+        uncorrelated versions uSD and uSE as the default uncertainty of the average.
+    print_results : bool
+        Boolean to control printing of the results
+
+    Returns
+    ----------
+    results_dict : dict
+        Dictionary containg resunts of MSER
+
+    """
+
+    # Check if energy and number_of_molecules are the same length
+    if len(energy) != len(number_of_molecules):
+        print('Energy and number_of_molecules arrays should have the same length!')
+        results_dict = {'MSE_E': np.nan,
+                        'MSE_N': np.nan,
+                        't0_E': np.nan,
+                        't0_N': np.nan,
+                        'average': np.nan,
+                        'uncertainty': np.nan,
+                        'equilibrated_E': np.nan,
+                        'equilibrated_N': np.nan,
+                        'ac_time_E': np.nan,
+                        'ac_time_N': np.nan,
+                        'uncorr_samples_E': np.nan,
+                        'uncorr_samples_N': np.nan}
+        return results_dict
+
+    # Check the consistency of the energy values
+    is_all_finite_E, is_all_zero_E, array_data_E = check_consistency(energy)
+
+    # Check the consistency of the number of molecules
+    is_all_finite_N, is_all_zero_N, array_data_N = check_consistency(number_of_molecules)
+
+    # Returns NaN if any of the time_series data is not a finite number
+    if all([is_all_finite_E, is_all_finite_N]) is False:
+        results_dict = {'MSE_E': np.nan,
+                        'MSE_N': np.nan,
+                        't0_E': np.nan,
+                        't0_N': np.nan,
+                        'average': np.nan,
+                        'uncertainty': np.nan,
+                        'equilibrated_E': np.nan,
+                        'equilibrated_N': np.nan,
+                        'ac_time_E': np.nan,
+                        'ac_time_N': np.nan,
+                        'uncorr_samples_E': np.nan,
+                        'uncorr_samples_N': np.nan}
+        return results_dict
+
+    # Returns zero if all the data in time_series is zero
+    if all([is_all_zero_E, is_all_zero_N]) is True:
+        results_dict = {'MSE_E': np.zeros(len(number_of_molecules)),
+                        'MSE_N': np.zeros(len(number_of_molecules)),
+                        't0_E': 0,
+                        't0_N': 0,
+                        'average': 0,
+                        'uncertainty': 0,
+                        'equilibrated_E': np.zeros(len(number_of_molecules)),
+                        'equilibrated_N': np.zeros(len(number_of_molecules)),
+                        'ac_time_E': 0,
+                        'ac_time_N': 0,
+                        'uncorr_samples_E': 0,
+                        'uncorr_samples_N': 0}
+
+        return results_dict
+
+    # Check if the input parameters are what is expected
+    assert isinstance(temperature, float), 'Temperature should be a float'
+    assert isinstance(LLM, bool), 'LLM should be True or False'
+    assert isinstance(batch_size, int), 'batch_size should be an int'
+    assert isinstance(ADF_test, bool), 'ADF_test should be True or False'
+    assert isinstance(print_results, bool), 'print_results should be True or False'
+
+    # Check if the uncertainty is a valid option
+    if uncertainty not in ['SD', 'SE', 'uSD', 'uSE']:
+        raise Exception(f"""{uncertainty} is not a valid option!
+            Only Standard Deviation (SD), Standard Error (SE), uncorrelated
+            Standard Deviation (uSD), and uncorrelated Standard Error (uSE)
+            are valid options.""")
+
+    # Calculate the Marginal Standard Error for the energy
+    MSEm_E = calculate_MSEm(energy, batch_size=batch_size)
+
+    if LLM is False:
+        # Apply the MSER to get the index of the start of equilibrated data
+        t0_E = MSERm_index(MSEm_E, batch_size=batch_size)
+
+    if LLM is True:
+        # Apply the MSER-LLM to get the index of the start of equilibrated data
+        t0_E = MSERm_LLM_index(MSEm_E, batch_size=batch_size)
+
+    # Calculate autocorrelation time and the number of uncorrelated samples
+    equilibrated_E = energy[t0_E:]
+    ac_time_E, uncorr_samples_E = calc_autocorrelation_time(equilibrated_E)
+
+    # Calculate the Marginal Standard Error for the number of molecules
+    MSEm_N = calculate_MSEm(number_of_molecules, batch_size=batch_size)
+
+    if LLM is False:
+        # Apply the MSER to get the index of the start of equilibrated data
+        t0_N = MSERm_index(MSEm_N, batch_size=batch_size)
+
+    if LLM is True:
+        # Apply the MSER-LLM to get the index of the start of equilibrated data
+        t0_N = MSERm_LLM_index(MSEm_N, batch_size=batch_size)
+
+    # Calculate autocorrelation time and the number of uncorrelated samples
+    equilibrated_N = number_of_molecules[t0_N:]
+    ac_time_N, uncorr_samples_N = calc_autocorrelation_time(equilibrated_N)
+
+    # Calculates the enthalpy of adsorption and its uncertainty
+    average, avg_uncertainty = calc_equilibrated_enthalpy(energy,
+                                                          number_of_molecules,
+                                                          temperature,
+                                                          eq_index=t0_E,
+                                                          uncertainty=uncertainty,
+                                                          ac_time=ac_time_E)
+
+    # Create a dictionary with the results
+    results_dict = {'MSE_E': MSEm_E,
+                    'MSE_N': MSEm_N,
+                    't0_E': t0_E,
+                    't0_N': t0_N,
+                    'average': average,
+                    'uncertainty': avg_uncertainty,
+                    'equilibrated_E': equilibrated_E,
+                    'equilibrated_N': equilibrated_N,
+                    'ac_time_E': ac_time_E,
+                    'ac_time_N': ac_time_N,
+                    'uncorr_samples_E': uncorr_samples_E,
+                    'uncorr_samples_N': uncorr_samples_N}
+
+    eq_ratio = 100 * (len(energy) - t0_E) / len(energy)
+
+    if print_results:
+        print(f"""                            pyMSER Equilibration Results
+==============================================================================
+Start of equilibrated data:          {t0_E} of {len(energy)}
+Total equilibrated steps:            {len(energy) - t0_E}  ({eq_ratio:.2f}%)
+Average over equilibrated data:      {average:.4f} ± {avg_uncertainty:.4f} kJ/mol
+Number of uncorrelated samples:      {uncorr_samples_E:.1f}
+Autocorrelation time:                {ac_time_E:.1f}
+==============================================================================""")
+
+    if ADF_test:
+        # Apply the Augmented Dickey-Fuller Test on the equilibrated data
+        ADFTestResults, output_text = apply_ADF_test(equilibrated_E,
                                                      verbosity=print_results)
         results_dict.update(ADFTestResults)
 
