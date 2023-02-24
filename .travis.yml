@@ -50,7 +50,7 @@ after_script:
 deploy:
   - provider: pypi
     username: "$ARTIFACTORY_USERNAME"
-    password: "$ARTIFACTORY_API_KEY"
+    password: "$ARTIFACTORY_ACCESS_TOKEN"
     server: "$ARTIFACTORY_URL"
     on:
       branch:
@@ -80,6 +80,6 @@ env:
   global:
     # ARTIFACTORY_USERNAME defined via web UI
     # ARTIFACTORY_URL defined via web UI
-    # ARTIFACTORY_API_KEY defined via web UI
+    # ARTIFACTORY_ACCESS_TOKEN defined via web UI
     # PYPI_API_TOKEN defined via web UI
     # GITHUB_PERSONAL_ACCESS_TOKEN defined via web UI

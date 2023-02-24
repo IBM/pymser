@@ -73,7 +73,7 @@ Log into Artifactory and access your user profile. There you will find your API 
 
 ```Shell
 export ARTIFACTORY_USERNAME=username@email.com
-export ARTIFACTORY_API_KEY=your-api-key
+export ARTIFACTORY_ACCESS_TOKEN=your-access-token
 export ARTIFACTORY_URL=your-artifactory-url
 ```
 
@@ -81,7 +81,7 @@ If you intend to use `pipenv`, please add the following to your `Pipfile`:
 
 ```Pipfile
 [[source]]
-url = "https://$ARTIFACTORY_USERNAME:$ARTIFACTORY_API_KEY@$ARTIFACTORY_URL"
+url = "https://$ARTIFACTORY_USERNAME:$ARTIFACTORY_ACCESS_TOKEN@$ARTIFACTORY_URL"
 verify_ssl = true
 name = "artifactory"
 
@@ -92,7 +92,7 @@ pymser = {version="*", index="artifactory"}
 If you intend to use `pip`, please run the command below:
 
 ```Shell
-pip install pymser --extra-index-url=https://$ARTIFACTORY_USERNAME:$ARTIFACTORY_API_KEY@$ARTIFACTORY_URL
+pip install pymser --extra-index-url=https://$ARTIFACTORY_USERNAME:$ARTIFACTORY_ACCESS_TOKEN@$ARTIFACTORY_URL
 ```
 
 ## Usage example
