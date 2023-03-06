@@ -82,8 +82,7 @@ def batch_average_data(data, batch_size=1):
     if batch_size > 1:
         # Trucate the data to allow a closed batch.
         # Be aware that this will remove the last points to make a closed batch
-        truncated_data = data[:int(
-            np.floor(len(data) / batch_size) * batch_size)]
+        truncated_data = data[:int(np.floor(len(data) / batch_size) * batch_size)]
 
         # Reshape the data to create batch of size m.
         reshaped_data = np.reshape(truncated_data, (-1, batch_size))
@@ -293,8 +292,7 @@ def calc_equilibrated_average(data, eq_index, uncertainty='uSD', ac_time=1):
     # Calculate the uncorrelated Standard Error
     elif uncertainty == 'uSD':
         # Divide the equilibrated_data on uncorrelated chunks
-        uncorr_batches = batch_average_data(equilibrated_data,
-                                            np.ceil(ac_time).astype(int))
+        uncorr_batches = batch_average_data(equilibrated_data, np.ceil(ac_time).astype(int))
 
         # Calculate the standard deviation on the uncorrelated chunks
         equilibrated_uncertainty = np.std(uncorr_batches)
@@ -302,8 +300,7 @@ def calc_equilibrated_average(data, eq_index, uncertainty='uSD', ac_time=1):
     # Calculate the uncorrelated Standard Error
     elif uncertainty == 'uSE':
         # Divide the equilibrated_data on uncorrelated chunks
-        uncorr_batches = batch_average_data(equilibrated_data,
-                                            np.ceil(ac_time).astype(int))
+        uncorr_batches = batch_average_data(equilibrated_data, np.ceil(ac_time).astype(int))
 
         # Calculate the standard error of the mean on the uncorrelated chunks
         equilibrated_uncertainty = np.std(uncorr_batches) / np.sqrt(len(uncorr_batches))
@@ -376,24 +373,24 @@ def calc_equilibrated_enthalpy(energy,
     equilibrated_H_list = []
 
     for i in range(len(reshaped_E)):
-        equilibrated_H_list.append(enthalpy_of_adsorption(reshaped_E[i],
-                                                          reshaped_N[i],
-                                                          temperature))
+        # Check if all elements in reshaped_N are non-zero values
+        H = enthalpy_of_adsorption(reshaped_E[i], reshaped_N[i], temperature)
+        equilibrated_H_list.append(H)
 
-    equilibrated_H = np.array(equilibrated_H_list).mean()
+    equilibrated_H = np.nanmean(np.array(equilibrated_H_list))
 
     # Calculate the uncorrelated Standard Error
     if uncertainty in ['SD', 'uSD']:
 
         # Calculate the standard deviation on the uncorrelated chunks
-        equilibrated_uncertainty = np.std(equilibrated_H_list)
+        eq_uncertainty = np.nanstd(equilibrated_H_list)
 
     elif uncertainty in ['SE', 'uSE']:
 
         # Calculate the standard error of the mean on the uncorrelated chunks
-        equilibrated_uncertainty = np.std(equilibrated_H_list) / np.sqrt(len(equilibrated_H_list))
+        eq_uncertainty = np.nanstd(equilibrated_H_list) / np.sqrt(len(equilibrated_H_list))
 
-    return equilibrated_H, equilibrated_uncertainty
+    return equilibrated_H, eq_uncertainty
 
 
 def calc_autocorrelation_time(data):
@@ -425,6 +422,10 @@ def calc_autocorrelation_time(data):
         data_norm = np.sum(data_std ** 2)
         ACF = np.correlate(data_std, data_std, mode='full')/data_norm
         ACF = ACF[int(ACF.size/2):]
+
+        # Filter ACF to remove values below 0.1 to improve the fit
+        idx = np.argmax(ACF <= 0.1)
+        ACF = ACF[:idx]
 
         # Fit a exponential decay to ACF
         x = np.arange(len(ACF))
@@ -565,13 +566,21 @@ def equilibrate(input_data,
     # Calculate the Marginal Standard Error curve
     MSEm_curve = calculate_MSEm(array_data, batch_size=batch_size)
 
+    if LLM is True:
+        # Apply the MSER-LLM to get the index of the start of equilibrated data
+        t0 = MSERm_LLM_index(MSEm_curve, batch_size=batch_size)
+
     if LLM is False:
         # Apply the MSER to get the index of the start of equilibrated data
         t0 = MSERm_index(MSEm_curve, batch_size=batch_size)
 
-    if LLM is True:
-        # Apply the MSER-LLM to get the index of the start of equilibrated data
-        t0 = MSERm_LLM_index(MSEm_curve, batch_size=batch_size)
+    # Check if t0 < 75% of the data
+    if t0 < 0.75 * len(array_data):
+        eq_status = 'Yes'
+    else:
+        eq_status = 'No. t0 > 75% of the data!'
+        print('Warning: t0 is too close to the end of the data!')
+        print('The results may not be reliable!')
 
     # Calculate autocorrelation time and the number of uncorrelated samples
     equilibrated = array_data[t0:]
@@ -599,6 +608,7 @@ def equilibrate(input_data,
 ==============================================================================
 Start of equilibrated data:          {t0} of {len(array_data)}
 Total equilibrated steps:            {len(array_data) - t0}  ({eq_ratio:.2f}%)
+Equilibrated:                        {eq_status}
 Average over equilibrated data:      {average:.4f} ± {avg_uncertainty:.4f}
 Number of uncorrelated samples:      {uncorr_samples:.1f}
 Autocorrelation time:                {ac_time:.1f}
@@ -606,8 +616,7 @@ Autocorrelation time:                {ac_time:.1f}
 
     if ADF_test:
         # Apply the Augmented Dickey-Fuller Test on the equilibrated data
-        ADFTestResults, output_text = apply_ADF_test(equilibrated,
-                                                     verbosity=print_results)
+        ADFTestResults, output_text = apply_ADF_test(equilibrated, verbosity=print_results)
         results_dict.update(ADFTestResults)
 
     return results_dict
@@ -758,6 +767,14 @@ def equilibrate_enthalpy(energy,
         # Apply the MSER-LLM to get the index of the start of equilibrated data
         t0_N = MSERm_LLM_index(MSEm_N, batch_size=batch_size)
 
+    # Check if t0 < 75% of the data
+    if t0_E < 0.75 * len(energy):
+        eq_status = 'Yes'
+    else:
+        eq_status = 'No. t0 > 75% of the data!'
+        print('Warning: t0 is too close to the end of the data!')
+        print('The results may not be reliable!')
+
     # Calculate autocorrelation time and the number of uncorrelated samples
     equilibrated_N = number_of_molecules[t0_N:]
     ac_time_N, uncorr_samples_N = calc_autocorrelation_time(equilibrated_N)
@@ -791,6 +808,7 @@ def equilibrate_enthalpy(energy,
 ==============================================================================
 Start of equilibrated data:          {t0_E} of {len(energy)}
 Total equilibrated steps:            {len(energy) - t0_E}  ({eq_ratio:.2f}%)
+Equilibrated:                        {eq_status}
 Average over equilibrated data:      {average:.4f} ± {avg_uncertainty:.4f} kJ/mol
 Number of uncorrelated samples:      {uncorr_samples_E:.1f}
 Autocorrelation time:                {ac_time_E:.1f}
@@ -798,8 +816,7 @@ Autocorrelation time:                {ac_time_E:.1f}
 
     if ADF_test:
         # Apply the Augmented Dickey-Fuller Test on the equilibrated data
-        ADFTestResults, output_text = apply_ADF_test(equilibrated_E,
-                                                     verbosity=print_results)
+        ADFTestResults, output_text = apply_ADF_test(equilibrated_E, verbosity=print_results)
         results_dict.update(ADFTestResults)
 
     return results_dict

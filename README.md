@@ -113,15 +113,16 @@ This is a small example of how to use our package:
 ==============================================================================
 Start of equilibrated data:          13368 of 48613
 Total equilibrated steps:            35245  (72.50%)
-Average over equilibrated data:      22.4197 ± 0.1926
-Number of uncorrelated samples:      22.9
-Autocorrelation time:                1067.3
+Equilibrated:                        Yes
+Average over equilibrated data:      22.4197 ± 0.1905
+Number of uncorrelated samples:      22.3
+Autocorrelation time:                1579.0
 ==============================================================================
 
                            Augmented Dickey-Fuller Test
 ==============================================================================
-Test statistic for observable: -3.926148246630444
-P-value for observable: 0.0018506194850899849
+Test statistic for observable: -3.926148246630434
+P-value for observable: 0.001850619485090052
 The number of lags used: 46
 The number of observations used for the ADF regression: 35198
 Cutoff Metrics :

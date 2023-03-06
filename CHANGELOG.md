@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## v1.0.18
+
+- Use `nanmean` and `nanstd` instead of `mean` and `std` to avoid erros when there are `NaN` values in the data
+- Add equilibration status on the print report and a warning if the equilibration is not reached
+
 ## v1.0.8
 
 - Downgrade requirements for Python from python>=3.10 to python>=3.9
