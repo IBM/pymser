@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="pymser",
-    version="1.0.17",
+    version="1.0.18",
     author="Felipe Lopes de Oliveira",
     author_email="felipe.lopes.oliveira@ibm.com",
     description="Library to apply the Marginal Standard Error Rule \
