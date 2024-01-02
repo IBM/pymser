@@ -7,6 +7,7 @@ A Python library to apply the [Marginal Standard Error Rule (MSER)](https://doi.
 * [NumPy](https://numpy.org) is the fundamental package for scientific computing with Python.
 * [SciPy](https://scipy.org/) is a collection of fundamental algorithms for scientific computing in Python.
 * [statsmodels](https://www.statsmodels.org/) is a python module that provides classes and functions for the estimation of many different statistical models, as well as for conducting statistical tests, and statistical data exploration.
+* [pyTorch](https://pytorch.org/) is an open source machine learning framework that uses tensor computations and automatic differentiation on GPU and CPU.
 
 ## Developer tips
 
