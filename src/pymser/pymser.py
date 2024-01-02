@@ -3,7 +3,6 @@ import numpy as np
 from scipy.optimize import curve_fit
 from scipy.signal import correlate as sp_corr
 from statsmodels.tsa.stattools import adfuller
-import time
 
 
 def exp_decay(t, tau):
