@@ -25,6 +25,7 @@ Monte Carlo adsorption simulations",
     include_package_data=True,
     install_requires=['numpy',
                       'scipy',
-                      'statsmodels'],
+                      'statsmodels',
+                      'torch'],
     license='BSD 3-Clause License'
 )
