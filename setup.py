@@ -7,7 +7,7 @@ setuptools.setup(
     name="pymser",
     version="1.0.20",
     author="Felipe Lopes de Oliveira",
-    author_email="felipe.lopes.oliveira@ibm.com",
+    author_email="felipe.lopes@nano.ufrj.br",
     description="Library to apply the Marginal Standard Error Rule \
 for transient regime detection and truncation on Grand Canonical \
 Monte Carlo adsorption simulations",
