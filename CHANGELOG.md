@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## v1.0.20
+
+- Use `pyTorch` to calculate the MSE curve reducing the overall time of the calculation by approximately one order of magnitude on large arrays
+- Use scipy to calculate the autocorrelation time reducing the overall time of the calculation by approximately two order of magnitudes on large arrays
+
 ## v1.0.18
 
 - Use `nanmean` and `nanstd` instead of `mean` and `std` to avoid erros when there are `NaN` values in the data

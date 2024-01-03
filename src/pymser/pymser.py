@@ -1,5 +1,7 @@
+import torch
 import numpy as np
 from scipy.optimize import curve_fit
+from scipy.signal import correlate as sp_corr
 from statsmodels.tsa.stattools import adfuller
 
 
@@ -113,33 +115,37 @@ def calculate_MSEm(data, batch_size=1):
         Array containig the Marginal Standard Error data
     """
 
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     # Convert data to n-blocked average
-    block_average = batch_average_data(data, batch_size)
+    batch_tensor = torch.tensor(batch_average_data(data, batch_size),
+                                dtype=torch.float32,
+                                device=device)
 
     # Get the size of the data
-    n = len(block_average)
+    n = len(batch_tensor)
 
     # Creates a empty list to store the MSE values
-    MSE = []
+    MSE = torch.zeros(n - 2, device=device)
 
     # Iterate over data index and calculates the average from k to n-2
     for k in range(n - 2):
         # Truncate data on k and convert it to a numpy array
-        truncated_data = np.array(block_average[k:])
+        truncated_data = batch_tensor[k:]
 
         # Get the average of the truncated data
-        Y_nk = np.average(truncated_data)
+        Y_nk = truncated_data.mean()
 
         # Calculates the sum of the squared diference
-        sum_sq_diff = np.sum([(j - Y_nk)**2 for j in truncated_data])
+        sum_sq_diff = torch.sum((truncated_data - Y_nk)**2)
 
         # Calculate the k-th Marginal standard error
         g_k = sum_sq_diff / (n - k)**2
 
         # Add the k-th to MSE array
-        MSE += [g_k]
+        MSE[k] = g_k
 
-    return np.array(MSE)
+    return MSE
 
 
 def MSERm_index(MSEm, batch_size=1):
@@ -420,7 +426,8 @@ def calc_autocorrelation_time(data):
         # Calculates the ACF using numpy
         data_std = data_array - np.mean(data_array)
         data_norm = np.sum(data_std ** 2)
-        ACF = np.correlate(data_std, data_std, mode='full')/data_norm
+
+        ACF = sp_corr(data_std, data_std, mode='full', method='fft') / data_norm
         ACF = ACF[int(ACF.size/2):]
 
         # Filter ACF to remove values below 0.1 to improve the fit
