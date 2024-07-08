@@ -84,13 +84,13 @@ def batch_average_data(data, batch_size=1):
     if batch_size > 1:
         # Trucate the data to allow a closed batch.
         # Be aware that this will remove the last points to make a closed batch
-        truncated_data = data[:int(np.floor(len(data) / batch_size) * batch_size)]
+        truncated_data = data[:int(torch.floor(len(data) / batch_size) * batch_size)]
 
         # Reshape the data to create batch of size m.
-        reshaped_data = np.reshape(truncated_data, (-1, batch_size))
+        reshaped_data = torch.reshape(truncated_data, (-1, batch_size))
 
         # Get the average of each batch
-        averaged_batches = np.array([np.average(i) for i in reshaped_data])
+        averaged_batches = torch.tensor([torch.average(i) for i in reshaped_data])
 
         return averaged_batches
 
@@ -165,11 +165,11 @@ def MSERm_index(MSEm, batch_size=1):
         Index of the start of equilibrated data
     """
     # Remove potential too low values that apears artificially on last points
-    MSEm = np.where(np.array(MSEm) < 1e-9,   # where value < 1e-9
-                    max(MSEm),               # replace for max(MSEm)
-                    np.array(MSEm))          # on MSEm array
+    MSEm = torch.where(MSEm < 1e-9,   # where value < 1e-9
+                       max(MSEm),     # replace for max(MSEm)
+                       MSEm)          # on MSEm array
 
-    equilibrated_index = np.argmin(MSEm)*batch_size
+    equilibrated_index = torch.argmin(MSEm)*batch_size
 
     return equilibrated_index
 
@@ -252,7 +252,7 @@ def enthalpy_of_adsorption(energy, number_of_molecules, temperature):
 
 
 def calc_equilibrated_average(data, eq_index, uncertainty='uSD', ac_time=1):
-    '''
+    """
     Calculates the average and uncertainty on the equilibrated part
     of the data.
 
@@ -273,7 +273,7 @@ def calc_equilibrated_average(data, eq_index, uncertainty='uSD', ac_time=1):
         Average on the equilibrated data
     equilibrated_uncertainty : float
         Uncertainty of the average calculation
-    '''
+    """
 
     if uncertainty not in ['SD', 'SE', 'uSD', 'uSE']:
         raise Exception(f"""{uncertainty} is not a valid option!
@@ -320,7 +320,7 @@ def calc_equilibrated_enthalpy(energy,
                                eq_index,
                                uncertainty='uSD',
                                ac_time=1):
-    '''
+    """
     Calculates the average enthalpy of adsorption and uncertainty on the equilibrated
     part of the data.
 
@@ -343,7 +343,7 @@ def calc_equilibrated_enthalpy(energy,
         Average on the equilibrated data
     equilibrated_uncertainty : float
         Uncertainty of the average calculation
-    '''
+    """
 
     if uncertainty not in ['SD', 'SE', 'uSD', 'uSE']:
         raise Exception(f"""{uncertainty} is not a valid option!
