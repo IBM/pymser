@@ -1,0 +1,12 @@
+name: pymser
+channels:
+  - conda-forge
+dependencies:
+  - python >= 3.10
+  - pip
+  - numpy
+  - pandas
+  - gemmi
+  - pip:
+    - pymser
+    - RASPA2

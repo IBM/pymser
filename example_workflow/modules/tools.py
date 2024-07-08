@@ -1,6 +1,7 @@
-import numpy as np
 import gemmi
-
+from glob import glob
+import re
+import numpy as np
 
 def calculate_Perpendicular_Widths(cif_filename: str) -> tuple:
     """
@@ -86,3 +87,48 @@ def get_pseudoatoms(molecule: str) -> list:
         return pseudoatoms_dict[molecule]
     else:
         return None
+
+
+def get_conversion_factors(output_folder: str,
+                           FrameworkName: str,
+                           ExternalTemperature: float,
+                           ExternalPressure: float,):
+    """
+    Get the conversion factors for the units in the RASPA simulation.
+
+    Parameters
+    ----------
+    path : string
+        Path to the folder containing the RASPA output file.
+    filename : string
+        Name of the RASPA output file.
+    Returns
+    ----------
+    conversion_factors : dict
+        Dictionary containing the conversion factors.
+    """
+
+    # Read file into string
+    filename = glob('{0}/output_{1}_*_{2:.6f}_{3:g}.data'.format(output_folder,
+                                                                 FrameworkName,
+                                                                 ExternalTemperature,
+                                                                 ExternalPressure))[0]
+
+    pattern = re.compile(r'Conversion factor molecules/unit cell -> (.+?):\s+(\d+\.\d+)')
+
+    with open(filename, 'r') as f:
+        lines = f.readlines()
+
+    conversion_factors = {
+        'mol/kg': [],
+        'mg/g': [],
+        'cm^3 STP/gr': [],
+        'cm^3 STP/cm^3': []
+    }
+    for line in lines:
+        if 'Conversion factor molecules/unit cell' in line:
+            match = re.search(pattern, line)
+
+            conversion_factors[match.group(1)].append(float(match.group(2)))
+    
+    return conversion_factors

@@ -21,7 +21,7 @@ def create_GCMC_input(path: str, FrameworkName: str, **kwargs):
         'NumberOfInitializationCycles': 0,                              # int
         'PrintEvery': 1,                                                # int
         'PrintPropertiesEvery': 1,                                      # int
-        'ForceField': 'DREIDING',                                       # string
+        'ForceField': 'local',                                          # string
         'CutOffVDW': 12.8,                                              # float
         'CutOffChargeCharge': 12.8,                                     # float
         'CutOffChargeBondDipole': 12.8,                                 # float

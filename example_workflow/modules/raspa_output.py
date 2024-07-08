@@ -53,6 +53,7 @@ def parse_GCMC(output_folder: str,
             component_key = f'Component {component}'
             molecule_name = raspa_dict[cycle_key][component_key][0]
             header += (
+                f',{molecule_name}_[N_ads]'
                 f',{molecule_name}_[molecules/uc]'
                 f',{molecule_name}_[mol/kg]'
             )
@@ -89,6 +90,7 @@ def parse_GCMC(output_folder: str,
             number_of_molecules = int(raspa_dict[cycle_key][component_key][2].split('/')[0])
             line += (
                 f', {number_of_molecules:7}'
+                f', {number_of_molecules / math.prod(unit_cells):7}'
                 f', {number_of_molecules * to_mol_kg:.7f}'
             )
 
