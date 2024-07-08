@@ -66,11 +66,11 @@ Output Path           : GCMC
 
                             pyMSER Equilibration Results
 ==============================================================================
-Start of equilibrated data:          1 of 4000
-Total equilibrated steps:            3999  (99.97%)
+Start of equilibrated data:          1 of 2000
+Total equilibrated steps:            1999  (99.97%)
 Equilibrated:                        Yes
 Average over equilibrated data:      3.5916 ± 1.9509
-Number of uncorrelated samples:      3999.0
+Number of uncorrelated samples:      1999.0
 Autocorrelation time:                1.0
 ==============================================================================
 
@@ -93,7 +93,7 @@ Average loading absolute [mol/kg framework]            0.0891424690 +/-         
 Average loading absolute [mg/g framework]              3.9231154891 +/-          2.2876414927
 Average loading absolute [cm^3 STP/gr]                 1.9980371381 +/-          1.1650925581
 Average loading absolute [cm^3 STP/cm^3]               1.7647568024 +/-          1.0290624625
-Total Enthalpy of adsorption [KJ/MOL]                -17.8534776591 +/-          0.3852622588
+Enthalpy of adsorption [KJ/MOL]                      -17.8534776591 +/-          0.3852622588
 ==============================================================================
 Component 1 [N2]
 ---------------------------------------------------------------------------
@@ -102,7 +102,7 @@ Average loading absolute [mol/kg framework]            0.0136228639 +/-         
 Average loading absolute [mg/g framework]              0.3816227347 +/-          0.5494910502
 Average loading absolute [cm^3 STP/gr]                 0.3053425404 +/-          0.4396567026
 Average loading absolute [cm^3 STP/cm^3]               0.2696923470 +/-          0.3883246922
-Total Enthalpy of adsorption [KJ/MOL]                -11.9135661990 +/-          3.2649508929
+Enthalpy of adsorption [KJ/MOL]                      -11.9135661990 +/-          3.2649508929
 ==============================================================================
 ```
 

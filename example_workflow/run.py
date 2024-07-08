@@ -182,7 +182,7 @@ while not equilibrated and nstep < maxSteps:
             log_text += 'Average loading absolute [mg/g framework]      {:20.10f} +/-  {:20.10f}\n'.format(*eq_data * convFactors['mg/g'][i])
             log_text += 'Average loading absolute [cm^3 STP/gr]         {:20.10f} +/-  {:20.10f}\n'.format(*eq_data * convFactors['cm^3 STP/gr'][i])
             log_text += 'Average loading absolute [cm^3 STP/cm^3]       {:20.10f} +/-  {:20.10f}\n'.format(*eq_data * convFactors['cm^3 STP/cm^3'][i])
-            log_text += 'Total Enthalpy of adsorption [KJ/MOL]          {:20.10f} +/-  {:20.10f}\n'.format(*enthalpy_data)
+            log_text += 'Enthalpy of adsorption [KJ/mol]                {:20.10f} +/-  {:20.10f}\n'.format(*enthalpy_data)
             log_text += '==============================================================================\n'
 
         print(log_text)
