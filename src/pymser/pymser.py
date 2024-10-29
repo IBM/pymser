@@ -4,6 +4,8 @@ from scipy.optimize import curve_fit
 from scipy.signal import correlate as sp_corr
 from statsmodels.tsa.stattools import adfuller
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 
 def exp_decay(t, tau):
     """
@@ -84,13 +86,13 @@ def batch_average_data(data, batch_size=1):
     if batch_size > 1:
         # Trucate the data to allow a closed batch.
         # Be aware that this will remove the last points to make a closed batch
-        truncated_data = data[:int(torch.floor(len(data) / batch_size) * batch_size)]
+        truncated_data = data[: int(len(data) / batch_size // 1 * batch_size)]
 
         # Reshape the data to create batch of size m.
         reshaped_data = torch.reshape(truncated_data, (-1, batch_size))
 
         # Get the average of each batch
-        averaged_batches = torch.tensor([torch.average(i) for i in reshaped_data])
+        averaged_batches = torch.tensor([torch.mean(i) for i in reshaped_data])
 
         return averaged_batches
 
@@ -115,12 +117,8 @@ def calculate_MSEm(data, batch_size=1):
         Array containig the Marginal Standard Error data
     """
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
     # Convert data to n-blocked average
-    batch_tensor = torch.tensor(batch_average_data(data, batch_size),
-                                dtype=torch.float32,
-                                device=device)
+    batch_tensor = batch_average_data(torch.from_numpy(data).float().to(device), batch_size)
 
     # Get the size of the data
     n = len(batch_tensor)
@@ -298,18 +296,20 @@ def calc_equilibrated_average(data, eq_index, uncertainty='uSD', ac_time=1):
     # Calculate the uncorrelated Standard Error
     elif uncertainty == 'uSD':
         # Divide the equilibrated_data on uncorrelated chunks
-        uncorr_batches = batch_average_data(equilibrated_data, np.ceil(ac_time).astype(int))
+        uncorr_batches = batch_average_data(torch.from_numpy(equilibrated_data).float().to(device), 
+                                            np.ceil(ac_time).astype(int))
 
         # Calculate the standard deviation on the uncorrelated chunks
-        equilibrated_uncertainty = np.std(uncorr_batches)
+        equilibrated_uncertainty = torch.std(uncorr_batches)
 
     # Calculate the uncorrelated Standard Error
     elif uncertainty == 'uSE':
         # Divide the equilibrated_data on uncorrelated chunks
-        uncorr_batches = batch_average_data(equilibrated_data, np.ceil(ac_time).astype(int))
+        uncorr_batches = batch_average_data(torch.from_numpy(equilibrated_data).float().to(device),
+                                            np.ceil(ac_time).astype(int))
 
         # Calculate the standard error of the mean on the uncorrelated chunks
-        equilibrated_uncertainty = np.std(uncorr_batches) / np.sqrt(len(uncorr_batches))
+        equilibrated_uncertainty = torch.std(uncorr_batches) / np.sqrt(len(uncorr_batches))
 
     return equilibrated_average, equilibrated_uncertainty
 
@@ -436,7 +436,7 @@ def calc_autocorrelation_time(data):
 
         # Fit a exponential decay to ACF
         x = np.arange(len(ACF))
-        [tau], _ = curve_fit(exp_decay,  x,  ACF)
+        [tau], _ = curve_fit(exp_decay, x, ACF)
 
         # Calculate autocorrelation time as the half-live of ACF exponential decay
         autocorrelation_time = np.ceil(tau*np.log(2))
