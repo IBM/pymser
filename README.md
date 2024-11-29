@@ -2,6 +2,10 @@
 
 A Python library to apply the [Marginal Standard Error Rule (MSER)](https://doi.org/10.1177/003754979706900601) for transient regime detection and truncation on Grand Canonical Monte Carlo adsorption simulations.
 
+> Oliveira, Felipe L., et al. "pyMSER - An Open-Source Library for Automatic Equilibration Detection in Molecular Simulations." *Journal of Chemical Theory and Computation* **20.19** (2024): 8559-8568.
+> 
+> https://doi.org/10.1021/acs.jctc.4c00417
+
 ## Dependencies
 
 * [NumPy](https://numpy.org) is the fundamental package for scientific computing with Python.
