@@ -86,7 +86,7 @@ def batch_average_data(data, batch_size=1):
     if batch_size > 1:
         # Trucate the data to allow a closed batch.
         # Be aware that this will remove the last points to make a closed batch
-        truncated_data = data[: int(len(data) / batch_size // 1 * batch_size)]
+        truncated_data = data[:int(len(data) / batch_size) * batch_size]
 
         # Reshape the data to create batch of size m.
         reshaped_data = torch.reshape(truncated_data, (-1, batch_size))
