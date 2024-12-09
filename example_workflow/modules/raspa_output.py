@@ -27,13 +27,15 @@ def parse_GCMC(output_folder: str,
     unit_cells = [int(line.split(':')[1]) for line in raspa_list if 'Number of unitcells' in line]
 
     # Calculate mol/kg conversion factor for the supercell
-    to_mol_kg = raspa_dict['MoleculeDefinitions']['Conversion factor molecules/unit cell -> mol/kg'][0]
+    conversion_string = 'Conversion factor molecules/unit cell -> mol/kg'
+    to_mol_kg = raspa_dict['MoleculeDefinitions'][conversion_string][0]
     to_mol_kg /= math.prod(unit_cells)
 
-    if os.path.isfile(os.path.join(output_folder, f'raspa_{ExternalTemperature:.6f}_{ExternalPressure}.csv')):
+    output_file_name = f'raspa_{ExternalTemperature:.6f}_{ExternalPressure}.csv'
+    if os.path.isfile(os.path.join(output_folder, output_file_name)):
         append_data = True
         # Open the file
-        with open(os.path.join(output_folder, f'raspa_{ExternalTemperature:.6f}_{ExternalPressure}.csv'), 'r') as f:
+        with open(os.path.join(output_folder, output_file_name), 'r') as f:
             lines = f.readlines()
             # Check if the last line is the same as the last cycle
             last_line = lines[-1].split(',')
@@ -109,6 +111,5 @@ def parse_GCMC(output_folder: str,
         csv_output += line + '\n'
 
     # Write string into file
-    output_file_name = f'raspa_{ExternalTemperature:.6f}_{ExternalPressure}.csv'
     with open(os.path.join(output_folder, output_file_name), 'a') as f:
         f.write(csv_output)

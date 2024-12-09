@@ -3,6 +3,7 @@ from glob import glob
 import re
 import numpy as np
 
+
 def calculate_Perpendicular_Widths(cif_filename: str) -> tuple:
     """
     Calculate the perpendicular widths of the unit cell.
@@ -130,5 +131,5 @@ def get_conversion_factors(output_folder: str,
             match = re.search(pattern, line)
 
             conversion_factors[match.group(1)].append(float(match.group(2)))
-    
+
     return conversion_factors

@@ -296,7 +296,7 @@ def calc_equilibrated_average(data, eq_index, uncertainty='uSD', ac_time=1):
     # Calculate the uncorrelated Standard Error
     elif uncertainty == 'uSD':
         # Divide the equilibrated_data on uncorrelated chunks
-        uncorr_batches = batch_average_data(torch.from_numpy(equilibrated_data).float().to(device), 
+        uncorr_batches = batch_average_data(torch.from_numpy(equilibrated_data).float().to(device),
                                             np.ceil(ac_time).astype(int))
 
         # Calculate the standard deviation on the uncorrelated chunks

@@ -147,15 +147,15 @@ def create_GCMC_input(path: str, FrameworkName: str, **kwargs):
         # Append component string block to input file
         GCMC_InputFile += dedent(f"""\
         Component {index_of_component} MoleculeName                  {name}
-                    MolFraction                   {fraction}
-                    MoleculeDefinition            TraPPE
-                    SwapProbability               0.5
-                    TranslationProbability        0.3
-                    RotationProbability           0.2
-                    IdentityChangeProbability     0.1
-                        NumberOfIdentityChanges     {number_of_components}
-                        IdentityChangesList         {' '.join(map(str, range(number_of_components)))}
-                    CreateNumberOfMolecules       0
+                    MolFraction                  {fraction}
+                    MoleculeDefinition           TraPPE
+                    SwapProbability              0.5
+                    TranslationProbability       0.3
+                    RotationProbability          0.2
+                    IdentityChangeProbability    0.1
+                        NumberOfIdentityChanges    {number_of_components}
+                        IdentityChangesList        {' '.join(map(str, range(number_of_components)))}
+                    CreateNumberOfMolecules      0
 
         """)
 

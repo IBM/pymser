@@ -48,7 +48,7 @@ parser.add_argument('--AddCycles',
                     action='store',
                     metavar='ADD_CYCLES',
                     default=1000,
-                    help='Number of aditional tentative cycles if the desired number of production cyles has not been achieved.') 
+                    help='Number of aditional cycles if NumberOfProdCycles was not achieved.')
 parser.add_argument('--ExternalTemperature',
                     type=float,
                     required=False,
@@ -62,7 +62,7 @@ parser.add_argument('--UnitCells',
                     action='store',
                     metavar='UNIT_CELLS',
                     default='auto',
-                    help='Number of unit cells to be simulated. Can be "auto" or a string of comma sep. values. Eg: "3,3,1".')
+                    help='Number of unit cells to simulate. Can be "auto" or "NX,NY,NZ" string.')
 parser.add_argument('--UseChargesFromCIFFile',
                     default=False,
                     required=False,
@@ -133,8 +133,9 @@ while not equilibrated and nstep < maxSteps:
         NumberOfCycles=arg.AddCycles,
         PrintEvery=1
         )
-    
-    dataFrame = pd.read_csv(f'Output/System_0/raspa_{arg.ExternalTemperature:.6f}_{arg.ExternalPressure}.csv')
+
+    csv_file = f'Output/System_0/raspa_{arg.ExternalTemperature:.6f}_{arg.ExternalPressure}.csv'
+    dataFrame = pd.read_csv(csv_file)
 
     eqDict = pymser.equilibrate(dataFrame['N_ads'], print_results=False)
 
@@ -142,14 +143,14 @@ while not equilibrated and nstep < maxSteps:
 
     if equilibrated:
 
-        log_text = '==============================================================================\n'
+        log_text = '=============================================================================\n'
 
         print("       > Success! Found {} production cycles. Analyzing final data...\n\n".format(
             len(dataFrame['N_ads']) - eqDict['t0']))
 
         eqDict = pymser.equilibrate(dataFrame['N_ads'], print_results=True)
 
-        log_text = '==============================================================================\n'
+        log_text = '=============================================================================\n'
 
         convFactors = get_conversion_factors(
             output_folder='Output/System_0',
@@ -159,12 +160,12 @@ while not equilibrated and nstep < maxSteps:
 
         for i, gas in enumerate(arg.GasComposition.keys()):
             eq_data = pymser.calc_equilibrated_average(
-                data=dataFrame[f'{gas}_[molecules/uc]'], 
+                data=dataFrame[f'{gas}_[molecules/uc]'],
                 eq_index=eqDict['t0'],
                 uncertainty='uSD',
                 ac_time=eqDict['ac_time']
                 )
-            
+
             eq_data = np.array(eq_data)
 
             enthalpy_data = pymser.calc_equilibrated_enthalpy(
@@ -177,16 +178,23 @@ while not equilibrated and nstep < maxSteps:
 
             log_text += f'Component {i} [{gas}]\n'
             log_text += '-'*75 + '\n'
-            log_text += 'Average loading absolute [molecules/unit cell] {:20.10f} +/-  {:20.10f}\n'.format(*eq_data)
-            log_text += 'Average loading absolute [mol/kg framework]    {:20.10f} +/-  {:20.10f}\n'.format(*eq_data * convFactors['mol/kg'][i])
-            log_text += 'Average loading absolute [mg/g framework]      {:20.10f} +/-  {:20.10f}\n'.format(*eq_data * convFactors['mg/g'][i])
-            log_text += 'Average loading absolute [cm^3 STP/gr]         {:20.10f} +/-  {:20.10f}\n'.format(*eq_data * convFactors['cm^3 STP/gr'][i])
-            log_text += 'Average loading absolute [cm^3 STP/cm^3]       {:20.10f} +/-  {:20.10f}\n'.format(*eq_data * convFactors['cm^3 STP/cm^3'][i])
-            log_text += 'Enthalpy of adsorption [KJ/mol]                {:20.10f} +/-  {:20.10f}\n'.format(*enthalpy_data)
-            log_text += '==============================================================================\n'
+            log_text += 'Average loading absolute [molecules/unit cell] {:20.10f} +/-  {:20.10f}\n'\
+                .format(*eq_data)
+            log_text += 'Average loading absolute [mol/kg framework]    {:20.10f} +/-  {:20.10f}\n'\
+                .format(*eq_data * convFactors['mol/kg'][i])
+            log_text += 'Average loading absolute [mg/g framework]      {:20.10f} +/-  {:20.10f}\n'\
+                .format(*eq_data * convFactors['mg/g'][i])
+            log_text += 'Average loading absolute [cm^3 STP/gr]         {:20.10f} +/-  {:20.10f}\n'\
+                .format(*eq_data * convFactors['cm^3 STP/gr'][i])
+            log_text += 'Average loading absolute [cm^3 STP/cm^3]       {:20.10f} +/-  {:20.10f}\n'\
+                .format(*eq_data * convFactors['cm^3 STP/cm^3'][i])
+            log_text += 'Enthalpy of adsorption [KJ/mol]                {:20.10f} +/-  {:20.10f}\n'\
+                .format(*enthalpy_data)
+            log_text += '========================================================================\n'
 
         print(log_text)
-        with open(f'{arg.FrameworkName}_{arg.ExternalTemperature:.6f}_{arg.ExternalPressure}.log', 'a') as f:
+        log = f'{arg.FrameworkName}_{arg.ExternalTemperature:.6f}_{arg.ExternalPressure}.log', 'a'
+        with open(log) as f:
             f.write(log_text)
     else:
         print("       > Found only {}/{} production cycles. Running more {} cycles.".format(
